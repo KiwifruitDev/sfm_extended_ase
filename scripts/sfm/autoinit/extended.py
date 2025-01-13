@@ -39,7 +39,7 @@ class ToolsButtonEventFilter(QtCore.QObject):
 
 class SFMExtended:
     def __init__(self):
-        self.version = "1.1"
+        self.version = "1.2"
         self.app = sfmApp.GetMainWindow()
         self.plus_button = None
         self.toolbutton_camera = None
@@ -62,7 +62,7 @@ class SFMExtended:
     def setup_settings(self):
         self.savedata = "extended_options.json"
         self.default_settings = {
-            "show_plus_button": False,
+            "show_plus_button": True,
             "shown_buttons": {
                 "camera": True,
                 "light": True,
