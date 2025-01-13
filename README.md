@@ -1,5 +1,7 @@
 # SFM Extended Animation Set Editor Buttons
-Adds direct element creation buttons to the Animation Set Editor in SFM. This script also removes the **+** button from the Animation Set Editor, as it is no longer needed.
+Adds direct element creation buttons to the Animation Set Editor in SFM.
+
+This script can also remove the **+** button from the Animation Set Editor, if desired.
 
 Requires [Autoinit Manager](https://steamcommunity.com/sharedfiles/filedetails/?id=3400621327) to work.
 
@@ -10,6 +12,19 @@ Perform the following steps to use this script:
 - Once SFM has updated the Workshop items, restart SFM.
 - You can now use the buttons in the Animation Set Editor to create new elements.
 - If the Animation Set Editor closes, you will need to re-run this script through Autoinit Manager once it's open again.
+
+## Settings
+In the Tools (gear) menu, you can find the following checkboxes:
+- Show + (Add) Button
+- Show Camera Button
+- Show Light Button
+- Show Model Button
+- Show Particle System Button
+- Show Existing Element(s) Button
+- Show Preset Button
+You can toggle these settings to show or hide the corresponding buttons.
+
+Also, a version number for **Extended ASE** is displayed at the bottom of the settings menu.
 
 ## Buttons
 The following buttons have been added:
