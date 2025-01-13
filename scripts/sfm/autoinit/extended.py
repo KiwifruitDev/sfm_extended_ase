@@ -39,7 +39,7 @@ class ToolsButtonEventFilter(QtCore.QObject):
 
 class SFMExtended:
     def __init__(self):
-        self.version = "1.2"
+        self.version = "1.3"
         self.app = sfmApp.GetMainWindow()
         self.plus_button = None
         self.toolbutton_camera = None
@@ -159,10 +159,10 @@ class SFMExtended:
                     # The first QTabbedToolButton is the settings menu
                     if not addedSetting:
                         addedSetting = True
-                        settings = child.menu().actions()
                         sfm.Msg("[EXTENDED ASE] Found the settings menu!\n")
-                        self.tools_actions = settings
                         self.tools_button = child
+                        self.tools_button.menu().aboutToShow.connect(self.toolbutton_tools_pressed)
+                        self.tools_button.menu().aboutToHide.connect(self.toolbutton_tools_released)
                         self.tools_button.hide()
                         continue
                     # The second QTabbedToolButton is the + menu
@@ -262,71 +262,6 @@ class SFMExtended:
                 self.toolbutton_tools.pressed.connect(self.toolbutton_tools_clicked)
                 # update event override (used to position)
                 self.animation_set_editor.installEventFilter(self.found_event_filter)
-                # Setup menu for tools button
-                self.tools_menu = QtGui.QMenu(self.toolbutton_tools)
-                self.tools_menu.aboutToShow.connect(self.toolbutton_tools_pressed)
-                self.tools_menu.aboutToHide.connect(self.toolbutton_tools_released)
-                # Add old options from the settings menu
-                for action in self.tools_actions:
-                    self.tools_menu.addAction(action)
-                # Add separator
-                separator = QtGui.QAction(self.tools_menu)
-                separator.setSeparator(True)
-                self.tools_menu.addAction(separator)
-                # Add "Show + (Add) Button" action
-                show_plus_button = QtGui.QAction(self.tools_menu)
-                show_plus_button.setText("Show + (Add) Button")
-                show_plus_button.setCheckable(True)
-                show_plus_button.setChecked(self.settings["show_plus_button"])
-                show_plus_button.triggered.connect(self.show_plus_button_toggled)
-                self.tools_menu.addAction(show_plus_button)
-                # Add "Show Camera Button" action
-                show_camera_button = QtGui.QAction(self.tools_menu)
-                show_camera_button.setText("Show Camera Button")
-                show_camera_button.setCheckable(True)
-                show_camera_button.setChecked(self.settings["shown_buttons"]["camera"])
-                show_camera_button.triggered.connect(self.show_camera_button_toggled)
-                self.tools_menu.addAction(show_camera_button)
-                # Add "Show Light Button" action
-                show_light_button = QtGui.QAction(self.tools_menu)
-                show_light_button.setText("Show Light Button")
-                show_light_button.setCheckable(True)
-                show_light_button.setChecked(self.settings["shown_buttons"]["light"])
-                show_light_button.triggered.connect(self.show_light_button_toggled)
-                self.tools_menu.addAction(show_light_button)
-                # Add "Show Model Button" action
-                show_model_button = QtGui.QAction(self.tools_menu)
-                show_model_button.setText("Show Model Button")
-                show_model_button.setCheckable(True)
-                show_model_button.setChecked(self.settings["shown_buttons"]["model"])
-                show_model_button.triggered.connect(self.show_model_button_toggled)
-                self.tools_menu.addAction(show_model_button)
-                # Add "Show Particle System Button" action
-                show_particle_button = QtGui.QAction(self.tools_menu)
-                show_particle_button.setText("Show Particle System Button")
-                show_particle_button.setCheckable(True)
-                show_particle_button.setChecked(self.settings["shown_buttons"]["particle"])
-                show_particle_button.triggered.connect(self.show_particle_button_toggled)
-                self.tools_menu.addAction(show_particle_button)
-                # Add "Show Existing Element(s) Button" action
-                show_pick_element_button = QtGui.QAction(self.tools_menu)
-                show_pick_element_button.setText("Show Existing Element(s) Button")
-                show_pick_element_button.setCheckable(True)
-                show_pick_element_button.setChecked(self.settings["shown_buttons"]["pick_element"])
-                show_pick_element_button.triggered.connect(self.show_pick_element_button_toggled)
-                self.tools_menu.addAction(show_pick_element_button)
-                # Add "Show Preset Button" action
-                show_create_preset_button = QtGui.QAction(self.tools_menu)
-                show_create_preset_button.setText("Show Preset Button")
-                show_create_preset_button.setCheckable(True)
-                show_create_preset_button.setChecked(self.settings["shown_buttons"]["create_preset"])
-                show_create_preset_button.triggered.connect(self.show_create_preset_button_toggled)
-                self.tools_menu.addAction(show_create_preset_button)
-                # Add header
-                header = QtGui.QAction(self.tools_menu)
-                header.setText("Extended ASE v"+self.version+" by KiwifruitDev")
-                header.setEnabled(False)
-                self.tools_menu.addAction(header)
                 self.toolbutton_tools.show()
                 sfm.Msg("[EXTENDED ASE] ToolButtons added!\n")
             else:
@@ -380,13 +315,82 @@ class SFMExtended:
         self.toolbutton_create_preset.setIcon(QtGui.QIcon("tools:/images/sfm/icon_ase_new_element.png"))
     def toolbutton_tools_clicked(self):
         if not self.tools_menu_shown:
-            self.tools_menu.exec_(self.toolbutton_tools.mapToGlobal(QtCore.QPoint(0, self.toolbutton_tools.height())))
+            self.tools_button.menu().exec_(self.toolbutton_tools.mapToGlobal(QtCore.QPoint(0, self.toolbutton_tools.height())))
     def toolbutton_tools_pressed(self):
         self.toolbutton_tools.setIcon(QtGui.QIcon("tools:/images/sfm/icon_gear_activated.png"))
         self.tools_menu_shown = True
+        menu = self.tools_button.menu()
+        # Add separator
+        self.separator = QtGui.QAction(menu)
+        self.separator.setSeparator(True)
+        menu.addAction(self.separator)
+        # Add "Show + (Add) Button" action
+        self.show_plus_button = QtGui.QAction(menu)
+        self.show_plus_button.setText("Show + (Add) Button")
+        self.show_plus_button.setCheckable(True)
+        self.show_plus_button.setChecked(self.settings["show_plus_button"])
+        self.show_plus_button.triggered.connect(self.show_plus_button_toggled)
+        menu.addAction(self.show_plus_button)
+        # Add "Show Camera Button" action
+        self.show_camera_button = QtGui.QAction(menu)
+        self.show_camera_button.setText("Show Camera Button")
+        self.show_camera_button.setCheckable(True)
+        self.show_camera_button.setChecked(self.settings["shown_buttons"]["camera"])
+        self.show_camera_button.triggered.connect(self.show_camera_button_toggled)
+        menu.addAction(self.show_camera_button)
+        # Add "Show Light Button" action
+        self.show_light_button = QtGui.QAction(menu)
+        self.show_light_button.setText("Show Light Button")
+        self.show_light_button.setCheckable(True)
+        self.show_light_button.setChecked(self.settings["shown_buttons"]["light"])
+        self.show_light_button.triggered.connect(self.show_light_button_toggled)
+        menu.addAction(self.show_light_button)
+        # Add "Show Model Button" action
+        self.show_model_button = QtGui.QAction(menu)
+        self.show_model_button.setText("Show Model Button")
+        self.show_model_button.setCheckable(True)
+        self.show_model_button.setChecked(self.settings["shown_buttons"]["model"])
+        self.show_model_button.triggered.connect(self.show_model_button_toggled)
+        menu.addAction(self.show_model_button)
+        # Add "Show Particle System Button" action
+        self.show_particle_button = QtGui.QAction(menu)
+        self.show_particle_button.setText("Show Particle System Button")
+        self.show_particle_button.setCheckable(True)
+        self.show_particle_button.setChecked(self.settings["shown_buttons"]["particle"])
+        self.show_particle_button.triggered.connect(self.show_particle_button_toggled)
+        menu.addAction(self.show_particle_button)
+        # Add "Show Existing Element(s) Button" action
+        self.show_pick_element_button = QtGui.QAction(menu)
+        self.show_pick_element_button.setText("Show Existing Element(s) Button")
+        self.show_pick_element_button.setCheckable(True)
+        self.show_pick_element_button.setChecked(self.settings["shown_buttons"]["pick_element"])
+        self.show_pick_element_button.triggered.connect(self.show_pick_element_button_toggled)
+        menu.addAction(self.show_pick_element_button)
+        # Add "Show Preset Button" action
+        self.show_create_preset_button = QtGui.QAction(menu)
+        self.show_create_preset_button.setText("Show Preset Button")
+        self.show_create_preset_button.setCheckable(True)
+        self.show_create_preset_button.setChecked(self.settings["shown_buttons"]["create_preset"])
+        self.show_create_preset_button.triggered.connect(self.show_create_preset_button_toggled)
+        menu.addAction(self.show_create_preset_button)
+        # Add header
+        self.header = QtGui.QAction(menu)
+        self.header.setText("Extended ASE v"+self.version+" by KiwifruitDev")
+        self.header.setEnabled(False)
+        menu.addAction(self.header)
     def toolbutton_tools_released(self):
         self.toolbutton_tools.setIcon(QtGui.QIcon("tools:/images/sfm/icon_gear.png"))
         QtCore.QTimer.singleShot(100, self.hide_tools_menu)
+        # Remove all the actions we added
+        self.separator.deleteLater()
+        self.show_plus_button.deleteLater()
+        self.show_camera_button.deleteLater()
+        self.show_light_button.deleteLater()
+        self.show_model_button.deleteLater()
+        self.show_particle_button.deleteLater()
+        self.show_pick_element_button.deleteLater()
+        self.show_create_preset_button.deleteLater()
+        self.header.deleteLater()
     def hide_tools_menu(self):
         self.tools_menu_shown = False
     def show_plus_button_toggled(self):
@@ -420,7 +424,9 @@ class SFMExtended:
     def closeEvent(self, event):
         self.save_settings()
         event.accept()
-
+    def trigger_old_button(self):
+        #self.toolbutton_tools_pressed()
+        self.tools_button.menu().exec_(self.toolbutton_tools.mapToGlobal(QtCore.QPoint(0, self.toolbutton_tools.height())))
 if __name__ == "__main__":
     extendedExists = globals().get("global_sfmExtended")
     oldEventFilter = globals().get("global_sfmExtended_eventFilter")
@@ -429,6 +435,7 @@ if __name__ == "__main__":
         del extendedExists
     if oldEventFilter:
         oldEventFilter.deleteLater()
+        globals()["global_sfmExtended_eventFilter"] = None
     sfmExtended = SFMExtended()
     globals()["global_sfmExtended"] = sfmExtended
     globals()["global_sfmExtended_eventFilter"] = sfmExtended.found_event_filter

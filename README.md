@@ -5,6 +5,8 @@ This script can also remove the **+** button from the Animation Set Editor, if d
 
 Requires [Autoinit Manager](https://steamcommunity.com/sharedfiles/filedetails/?id=3400621327) to work.
 
+View the changelog [here](CHANGELOG.md).
+
 ## Usage
 Perform the following steps to use this script:
 - Make sure the Animation Set Editor is open (does not need to be the active tab).
