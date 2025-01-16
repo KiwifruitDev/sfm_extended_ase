@@ -26,6 +26,7 @@
 import sfm
 import sfmApp
 import json
+import ctypes
 from PySide import QtGui, QtCore
 
 class ToolsButtonEventFilter(QtCore.QObject):
@@ -35,11 +36,13 @@ class ToolsButtonEventFilter(QtCore.QObject):
             if sfmExtended:
                 tools_button = sfmExtended.toolbutton_tools
                 tools_button.move(obj.width()-tools_button.width()-2, tools_button.y())
+                paste_button = sfmExtended.toolbutton_paste
+                paste_button.move(obj.width()-tools_button.width()-paste_button.width()-4, paste_button.y())
         return False
 
 class SFMExtended:
     def __init__(self):
-        self.version = "1.3"
+        self.version = "1.4"
         self.app = sfmApp.GetMainWindow()
         self.plus_button = None
         self.toolbutton_camera = None
@@ -48,6 +51,7 @@ class SFMExtended:
         self.toolbutton_particle = None
         self.toolbutton_pick_element = None
         self.toolbutton_create_preset = None
+        self.toolbutton_tools_menu = None
         self.separator_offset = 5
         self.small_width = 32
         self.large_width = 40
@@ -55,6 +59,7 @@ class SFMExtended:
         self.x_offset = 1
         self.y_offset = 1
         self.tools_menu_shown = False
+        self.paste_available = False
         self.found_event_filter = ToolsButtonEventFilter()
         self.setup_settings()
         self.setup()
@@ -70,7 +75,8 @@ class SFMExtended:
                 "particle": True,
                 "pick_element": True,
                 "create_preset": True
-            }
+            },
+            "show_paste_button": True
         }
         self.settings = self.default_settings
         self.load_settings()
@@ -79,6 +85,9 @@ class SFMExtended:
         try:
             with open(self.savedata, "r") as f:
                 self.settings = json.load(f)
+                # set show_paste_button to True if it doesn't exist
+                if "show_paste_button" not in self.settings:
+                    self.settings["show_paste_button"] = True
         except:
             # Create new settings file
             sfm.Msg("[EXTENDED ASE] Settings file not found, creating new settings file.\n")
@@ -138,6 +147,12 @@ class SFMExtended:
                 self.toolbutton_create_preset.show()
             else:
                 self.toolbutton_create_preset.hide()
+        if self.toolbutton_paste:
+            if self.settings["show_paste_button"]:
+                self.toolbutton_paste.move(self.animation_set_editor.width()-self.large_width-self.small_width-4, self.y_offset)
+                self.toolbutton_paste.show()
+            else:
+                self.toolbutton_paste.hide()
     def setup(self):
         # Get animation set editor window
         # Using pyside to go through the window hierarchy from the main window
@@ -152,24 +167,21 @@ class SFMExtended:
                 if child.metaObject().className() == "QToolButton":
                     if child.objectName().startswith("toolbutton_"):
                         child.deleteLater()
-            addedSetting = False
             for child in self.animation_set_editor.findChildren(QtGui.QWidget):
-                # Get the second QTabbedToolButton
-                if(child.metaObject().className() == "CQTabbedToolButton"):
-                    # The first QTabbedToolButton is the settings menu
-                    if not addedSetting:
-                        addedSetting = True
-                        sfm.Msg("[EXTENDED ASE] Found the settings menu!\n")
+                if child.metaObject().className() == "CQTabbedToolButton":
+                    # Get tooltip and compare it to "Tools"
+                    if child.toolTip() == "Tools":
+                        # This is the settings menu, save and hide it
+                        sfm.Msg("[EXTENDED ASE] Found the original tools menu!\n")
                         self.tools_button = child
-                        self.tools_button.menu().aboutToShow.connect(self.toolbutton_tools_pressed)
                         self.tools_button.menu().aboutToHide.connect(self.toolbutton_tools_released)
                         self.tools_button.hide()
-                        continue
-                    # The second QTabbedToolButton is the + menu
-                    tabbedbuttonparent = child.parent()
-                    self.actions = child.menu().actions()
-                    self.plus_button = child
-                    break
+                    if child.toolTip() == "Add":
+                        # The second QTabbedToolButton is the + menu
+                        sfm.Msg("[EXTENDED ASE] Found the original add menu!\n")
+                        tabbedbuttonparent = child.parent()
+                        self.actions = child.menu().actions()
+                        self.plus_button = child
             # Add PySide.QtGui.QToolButton to the toolbuttonparent
             if tabbedbuttonparent:
                 # where to place the buttons
@@ -259,10 +271,96 @@ class SFMExtended:
                 self.toolbutton_tools.move(self.animation_set_editor.width()-self.large_width-2, self.y_offset)
                 self.toolbutton_tools.setIcon(QtGui.QIcon("tools:/images/sfm/icon_gear.png"))
                 self.toolbutton_tools.setToolTip("Tools")
+                # Menu
+                self.toolbutton_tools_menu = QtGui.QMenu(self.toolbutton_tools)
+                self.toolbutton_tools_menu.aboutToShow.connect(self.toolbutton_tools_pressed)
+                self.toolbutton_tools_menu.aboutToHide.connect(self.toolbutton_tools_released)
+                # Add "Open Original Tools Menu" action
+                self.open_old_button = QtGui.QAction(self.toolbutton_tools_menu)
+                self.open_old_button.setText("Open Original Tools Menu")
+                self.open_old_button.triggered.connect(self.trigger_old_button)
+                self.toolbutton_tools_menu.addAction(self.open_old_button)
+                # Add separator
+                self.separator = QtGui.QAction(self.toolbutton_tools_menu)
+                self.separator.setSeparator(True)
+                self.toolbutton_tools_menu.addAction(self.separator)
+                # Add "Show + (Add) Button" action
+                self.show_plus_button = QtGui.QAction(self.toolbutton_tools_menu)
+                self.show_plus_button.setText("Show + (Add) Button")
+                self.show_plus_button.setCheckable(True)
+                self.show_plus_button.setChecked(self.settings["show_plus_button"])
+                self.show_plus_button.triggered.connect(self.show_plus_button_toggled)
+                self.toolbutton_tools_menu.addAction(self.show_plus_button)
+                # Add "Show Camera Button" action
+                self.show_camera_button = QtGui.QAction(self.toolbutton_tools_menu)
+                self.show_camera_button.setText("Show Camera Button")
+                self.show_camera_button.setCheckable(True)
+                self.show_camera_button.setChecked(self.settings["shown_buttons"]["camera"])
+                self.show_camera_button.triggered.connect(self.show_camera_button_toggled)
+                self.toolbutton_tools_menu.addAction(self.show_camera_button)
+                # Add "Show Light Button" action
+                self.show_light_button = QtGui.QAction(self.toolbutton_tools_menu)
+                self.show_light_button.setText("Show Light Button")
+                self.show_light_button.setCheckable(True)
+                self.show_light_button.setChecked(self.settings["shown_buttons"]["light"])
+                self.show_light_button.triggered.connect(self.show_light_button_toggled)
+                self.toolbutton_tools_menu.addAction(self.show_light_button)
+                # Add "Show Model Button" action
+                self.show_model_button = QtGui.QAction(self.toolbutton_tools_menu)
+                self.show_model_button.setText("Show Model Button")
+                self.show_model_button.setCheckable(True)
+                self.show_model_button.setChecked(self.settings["shown_buttons"]["model"])
+                self.show_model_button.triggered.connect(self.show_model_button_toggled)
+                self.toolbutton_tools_menu.addAction(self.show_model_button)
+                # Add "Show Particle System Button" action
+                self.show_particle_button = QtGui.QAction(self.toolbutton_tools_menu)
+                self.show_particle_button.setText("Show Particle System Button")
+                self.show_particle_button.setCheckable(True)
+                self.show_particle_button.setChecked(self.settings["shown_buttons"]["particle"])
+                self.show_particle_button.triggered.connect(self.show_particle_button_toggled)
+                self.toolbutton_tools_menu.addAction(self.show_particle_button)
+                # Add "Show Existing Element(s) Button" action
+                self.show_pick_element_button = QtGui.QAction(self.toolbutton_tools_menu)
+                self.show_pick_element_button.setText("Show Existing Element(s) Button")
+                self.show_pick_element_button.setCheckable(True)
+                self.show_pick_element_button.setChecked(self.settings["shown_buttons"]["pick_element"])
+                self.show_pick_element_button.triggered.connect(self.show_pick_element_button_toggled)
+                self.toolbutton_tools_menu.addAction(self.show_pick_element_button)
+                # Add "Show Preset Button" action
+                self.show_create_preset_button = QtGui.QAction(self.toolbutton_tools_menu)
+                self.show_create_preset_button.setText("Show Preset Button")
+                self.show_create_preset_button.setCheckable(True)
+                self.show_create_preset_button.setChecked(self.settings["shown_buttons"]["create_preset"])
+                self.show_create_preset_button.triggered.connect(self.show_create_preset_button_toggled)
+                self.toolbutton_tools_menu.addAction(self.show_create_preset_button)
+                # Add "Show Paste Button" action
+                self.show_paste_button = QtGui.QAction(self.toolbutton_tools_menu)
+                self.show_paste_button.setText("Show Paste Button")
+                self.show_paste_button.setCheckable(True)
+                self.show_paste_button.setChecked(self.settings["show_paste_button"])
+                self.show_paste_button.triggered.connect(self.show_paste_button_toggled)
+                self.toolbutton_tools_menu.addAction(self.show_paste_button)
+                # Add header
+                self.header = QtGui.QAction(self.toolbutton_tools_menu)
+                self.header.setText("Extended ASE v"+self.version+" by KiwifruitDev")
+                self.header.setEnabled(False)
+                self.toolbutton_tools_menu.addAction(self.header)
+                #self.toolbutton_tools.setMenu(self.toolbutton_tools_menu)
                 self.toolbutton_tools.pressed.connect(self.toolbutton_tools_clicked)
+                self.toolbutton_tools.show()
+                # paste (right aligned, left of tools)
+                self.toolbutton_paste = QtGui.QToolButton(tabbedbuttonparent)
+                self.toolbutton_paste.setObjectName("toolbutton_paste")
+                self.toolbutton_paste.setIconSize(QtCore.QSize(self.small_width, self.height))
+                self.toolbutton_paste.resize(self.small_width, self.height)
+                self.toolbutton_paste.move(self.animation_set_editor.width()-self.large_width-self.small_width-4, self.y_offset)
+                self.toolbutton_paste.setIcon(QtGui.QIcon("tools:/images/sfm/icon_modificationmode_offset.png"))
+                self.toolbutton_paste.setToolTip("Paste Animation Set(s)")
+                self.toolbutton_paste.clicked.connect(self.toolbutton_paste_clicked)
+                self.toolbutton_paste.pressed.connect(self.toolbutton_paste_pressed)
+                self.toolbutton_paste.released.connect(self.toolbutton_paste_released)
                 # update event override (used to position)
                 self.animation_set_editor.installEventFilter(self.found_event_filter)
-                self.toolbutton_tools.show()
                 sfm.Msg("[EXTENDED ASE] ToolButtons added!\n")
             else:
                 sfm.Msg("[EXTENDED ASE] ToolButton parent not found.\n")
@@ -315,82 +413,26 @@ class SFMExtended:
         self.toolbutton_create_preset.setIcon(QtGui.QIcon("tools:/images/sfm/icon_ase_new_element.png"))
     def toolbutton_tools_clicked(self):
         if not self.tools_menu_shown:
-            self.tools_button.menu().exec_(self.toolbutton_tools.mapToGlobal(QtCore.QPoint(0, self.toolbutton_tools.height())))
+            self.toolbutton_tools_menu.exec_(self.toolbutton_tools.mapToGlobal(QtCore.QPoint(0, self.toolbutton_tools.height())))
     def toolbutton_tools_pressed(self):
         self.toolbutton_tools.setIcon(QtGui.QIcon("tools:/images/sfm/icon_gear_activated.png"))
         self.tools_menu_shown = True
-        menu = self.tools_button.menu()
-        # Add separator
-        self.separator = QtGui.QAction(menu)
-        self.separator.setSeparator(True)
-        menu.addAction(self.separator)
-        # Add "Show + (Add) Button" action
-        self.show_plus_button = QtGui.QAction(menu)
-        self.show_plus_button.setText("Show + (Add) Button")
-        self.show_plus_button.setCheckable(True)
-        self.show_plus_button.setChecked(self.settings["show_plus_button"])
-        self.show_plus_button.triggered.connect(self.show_plus_button_toggled)
-        menu.addAction(self.show_plus_button)
-        # Add "Show Camera Button" action
-        self.show_camera_button = QtGui.QAction(menu)
-        self.show_camera_button.setText("Show Camera Button")
-        self.show_camera_button.setCheckable(True)
-        self.show_camera_button.setChecked(self.settings["shown_buttons"]["camera"])
-        self.show_camera_button.triggered.connect(self.show_camera_button_toggled)
-        menu.addAction(self.show_camera_button)
-        # Add "Show Light Button" action
-        self.show_light_button = QtGui.QAction(menu)
-        self.show_light_button.setText("Show Light Button")
-        self.show_light_button.setCheckable(True)
-        self.show_light_button.setChecked(self.settings["shown_buttons"]["light"])
-        self.show_light_button.triggered.connect(self.show_light_button_toggled)
-        menu.addAction(self.show_light_button)
-        # Add "Show Model Button" action
-        self.show_model_button = QtGui.QAction(menu)
-        self.show_model_button.setText("Show Model Button")
-        self.show_model_button.setCheckable(True)
-        self.show_model_button.setChecked(self.settings["shown_buttons"]["model"])
-        self.show_model_button.triggered.connect(self.show_model_button_toggled)
-        menu.addAction(self.show_model_button)
-        # Add "Show Particle System Button" action
-        self.show_particle_button = QtGui.QAction(menu)
-        self.show_particle_button.setText("Show Particle System Button")
-        self.show_particle_button.setCheckable(True)
-        self.show_particle_button.setChecked(self.settings["shown_buttons"]["particle"])
-        self.show_particle_button.triggered.connect(self.show_particle_button_toggled)
-        menu.addAction(self.show_particle_button)
-        # Add "Show Existing Element(s) Button" action
-        self.show_pick_element_button = QtGui.QAction(menu)
-        self.show_pick_element_button.setText("Show Existing Element(s) Button")
-        self.show_pick_element_button.setCheckable(True)
-        self.show_pick_element_button.setChecked(self.settings["shown_buttons"]["pick_element"])
-        self.show_pick_element_button.triggered.connect(self.show_pick_element_button_toggled)
-        menu.addAction(self.show_pick_element_button)
-        # Add "Show Preset Button" action
-        self.show_create_preset_button = QtGui.QAction(menu)
-        self.show_create_preset_button.setText("Show Preset Button")
-        self.show_create_preset_button.setCheckable(True)
-        self.show_create_preset_button.setChecked(self.settings["shown_buttons"]["create_preset"])
-        self.show_create_preset_button.triggered.connect(self.show_create_preset_button_toggled)
-        menu.addAction(self.show_create_preset_button)
-        # Add header
-        self.header = QtGui.QAction(menu)
-        self.header.setText("Extended ASE v"+self.version+" by KiwifruitDev")
-        self.header.setEnabled(False)
-        menu.addAction(self.header)
     def toolbutton_tools_released(self):
         self.toolbutton_tools.setIcon(QtGui.QIcon("tools:/images/sfm/icon_gear.png"))
         QtCore.QTimer.singleShot(100, self.hide_tools_menu)
-        # Remove all the actions we added
-        self.separator.deleteLater()
-        self.show_plus_button.deleteLater()
-        self.show_camera_button.deleteLater()
-        self.show_light_button.deleteLater()
-        self.show_model_button.deleteLater()
-        self.show_particle_button.deleteLater()
-        self.show_pick_element_button.deleteLater()
-        self.show_create_preset_button.deleteLater()
-        self.header.deleteLater()
+    def toolbutton_paste_clicked(self):
+        if not self.tools_button.menu().actions()[0].isEnabled():
+            self.paste_available = False
+        if not self.paste_available:
+            QtCore.QTimer.singleShot(100, self.press_escape)
+            # press the button
+            self.tools_button.menu().exec_(self.toolbutton_paste.mapToGlobal(QtCore.QPoint(0, self.toolbutton_paste.height())))
+        if self.paste_available:
+            self.tools_button.menu().actions()[0].trigger()
+    def toolbutton_paste_pressed(self):
+        self.toolbutton_paste.setIcon(QtGui.QIcon("tools:/images/sfm/icon_modificationmode_offset_activated.png"))
+    def toolbutton_paste_released(self):
+        self.toolbutton_paste.setIcon(QtGui.QIcon("tools:/images/sfm/icon_modificationmode_offset.png"))
     def hide_tools_menu(self):
         self.tools_menu_shown = False
     def show_plus_button_toggled(self):
@@ -421,12 +463,25 @@ class SFMExtended:
         self.settings["shown_buttons"]["create_preset"] = not self.settings["shown_buttons"]["create_preset"]
         self.save_settings()
         self.apply_settings()
+    def show_paste_button_toggled(self):
+        self.settings["show_paste_button"] = not self.settings["show_paste_button"]
+        self.save_settings()
+        self.apply_settings()
     def closeEvent(self, event):
         self.save_settings()
         event.accept()
     def trigger_old_button(self):
-        #self.toolbutton_tools_pressed()
+        self.toolbutton_tools_pressed()
         self.tools_button.menu().exec_(self.toolbutton_tools.mapToGlobal(QtCore.QPoint(0, self.toolbutton_tools.height())))
+        self.paste_available = self.tools_button.menu().actions()[0].isEnabled()
+    def press_escape(self):
+        KEYEVENTF_KEYDOWN = 0x0000
+        KEYEVENTF_KEYUP = 0x0002
+        VK_ESCAPE = 0x1B
+        ctypes.windll.user32.keybd_event(VK_ESCAPE, 0, KEYEVENTF_KEYDOWN, 0)
+        ctypes.windll.user32.keybd_event(VK_ESCAPE, 0, KEYEVENTF_KEYUP, 0)
+        if self.tools_button.menu().actions()[0].isEnabled():
+            self.paste_available = True
 if __name__ == "__main__":
     extendedExists = globals().get("global_sfmExtended")
     oldEventFilter = globals().get("global_sfmExtended_eventFilter")
