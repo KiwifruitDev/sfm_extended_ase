@@ -1,5 +1,8 @@
 # Changelog
 
+## Version 1.5 **(January 16 2025)**
+Moved the "Paste Animation Set(s)" button a little bit further to the left.
+
 ## Version 1.4 **(January 16 2025)**
 Added a new "Paste Animation Set(s)" button that can be toggled through the Tools menu.
 

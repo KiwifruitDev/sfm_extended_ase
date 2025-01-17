@@ -37,12 +37,12 @@ class ToolsButtonEventFilter(QtCore.QObject):
                 tools_button = sfmExtended.toolbutton_tools
                 tools_button.move(obj.width()-tools_button.width()-2, tools_button.y())
                 paste_button = sfmExtended.toolbutton_paste
-                paste_button.move(obj.width()-tools_button.width()-paste_button.width()-4, paste_button.y())
+                paste_button.move(obj.width()-tools_button.width()-paste_button.width()-4-3, paste_button.y())
         return False
 
 class SFMExtended:
     def __init__(self):
-        self.version = "1.4"
+        self.version = "1.5"
         self.app = sfmApp.GetMainWindow()
         self.plus_button = None
         self.toolbutton_camera = None
@@ -149,7 +149,7 @@ class SFMExtended:
                 self.toolbutton_create_preset.hide()
         if self.toolbutton_paste:
             if self.settings["show_paste_button"]:
-                self.toolbutton_paste.move(self.animation_set_editor.width()-self.large_width-self.small_width-4, self.y_offset)
+                self.toolbutton_paste.move(self.animation_set_editor.width()-self.large_width-self.small_width-4-3, self.y_offset)
                 self.toolbutton_paste.show()
             else:
                 self.toolbutton_paste.hide()
@@ -353,7 +353,7 @@ class SFMExtended:
                 self.toolbutton_paste.setObjectName("toolbutton_paste")
                 self.toolbutton_paste.setIconSize(QtCore.QSize(self.small_width, self.height))
                 self.toolbutton_paste.resize(self.small_width, self.height)
-                self.toolbutton_paste.move(self.animation_set_editor.width()-self.large_width-self.small_width-4, self.y_offset)
+                self.toolbutton_paste.move(self.animation_set_editor.width()-self.large_width-self.small_width-4-3, self.y_offset)
                 self.toolbutton_paste.setIcon(QtGui.QIcon("tools:/images/sfm/icon_modificationmode_offset.png"))
                 self.toolbutton_paste.setToolTip("Paste Animation Set(s)")
                 self.toolbutton_paste.clicked.connect(self.toolbutton_paste_clicked)
